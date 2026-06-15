@@ -1,6 +1,6 @@
 const $ = selector => document.querySelector(selector);
 const HISTORY_KEY = 'pedramExportHistory';
-const EXPORT_SCHEMA_VERSION = 3;
+const EXPORT_SCHEMA_VERSION = 4;
 let current = null;
 let config = { fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false };
 let autoExportAttempted = false;

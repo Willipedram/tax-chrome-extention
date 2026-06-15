@@ -6,6 +6,7 @@
     'نام فروشنده/حق‌العمل کار',
     'شماره مالیاتی صورتحساب',
     'مبلغ واحد',
+    'تعداد/مقدار',
     'مجموع مالیات بر ارزش افزوده',
     'مجموع مبلغ پس از کسر تخفیف',
     'مجموع صورتحساب'
@@ -209,6 +210,13 @@
     return values;
   }
 
+
+  function tableColumnValues(data, headerLabels) {
+    const values = [];
+    for (const label of headerLabels) values.push(...exactTableColumnValues(data, label));
+    return values;
+  }
+
   function uniqueJoin(values) {
     const seen = [];
     for (const value of values.map(normalize).filter(Boolean)) if (!seen.includes(value)) seen.push(value);
@@ -223,12 +231,13 @@
     const invoiceTotal = amountByLabels(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل'], 'payment');
     const blockedAmounts = new Set([vat, goodsTotal, invoiceTotal].filter(Boolean));
     const unitAmounts = (exactTableColumnValues(data, 'مبلغ واحد').length ? exactTableColumnValues(data, 'مبلغ واحد') : [amountByLabels(data, ['مبلغ واحد', 'فی', 'بهای واحد'])]).filter(value => value && !blockedAmounts.has(value));
+    const quantityValues = (tableColumnValues(data, ['تعداد/مقدار', 'تعداد', 'مقدار']).length ? tableColumnValues(data, ['تعداد/مقدار', 'تعداد', 'مقدار']) : [amountByLabels(data, ['تعداد/مقدار', 'تعداد', 'مقدار'])]).filter(Boolean);
 
     return {
       id: taxInvoiceNumber || `${data.url || ''}:${data.extractedAt || ''}`,
       extractedAt: data.extractedAt,
       url: data.url,
-      values: [sellerName, taxInvoiceNumber, uniqueJoin(unitAmounts), vat, goodsTotal, invoiceTotal]
+      values: [sellerName, taxInvoiceNumber, uniqueJoin(unitAmounts), uniqueJoin(quantityValues), vat, goodsTotal, invoiceTotal]
     };
   }
 
