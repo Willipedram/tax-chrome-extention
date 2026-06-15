@@ -204,7 +204,17 @@
     const wanted = labels.map(keyify);
     for (const field of data.fields || []) {
       const label = keyify(field.label);
-      if (wanted.some(want => label === want || label.includes(want))) return normalize(field.value);
+      if (wanted.some(want => label === want || label.includes(want))) {
+        const value = normalize(field.value).replace(/^.*?[:：]\s*/u, '').trim();
+        if (value) return value;
+      }
+    }
+    for (const textValue of allFieldTexts(data)) {
+      for (const label of labels) {
+        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = textValue.match(new RegExp(`${escaped}\\s*[:：]\\s*([^\\n،;,؛]+)`, 'u'));
+        if (match?.[1]) return normalize(match[1]);
+      }
     }
     return '';
   }
@@ -239,7 +249,7 @@
   }
 
   function valueByHeader(row, matchers) {
-    const entries = Object.entries(row?.values || {});
+    const entries = Object.entries(row?.values || row?.raw || {});
     for (const matcher of matchers) {
       const wanted = keyify(matcher);
       const found = entries.find(([header, value]) => keyify(header).includes(wanted) && normalize(value));
@@ -273,7 +283,7 @@
       productId: valueByHeader(row, ['شناسه کالا/خدمت', 'شناسه کالا', 'شناسه خدمت', 'کد کالا', 'کد خدمت']),
       quantity: valueByHeader(row, ['تعداد/مقدار', 'تعداد', 'مقدار']),
       unitAmount: valueByHeader(row, ['مبلغ واحد', 'فی', 'بهای واحد']),
-      raw: row.values || {}
+      raw: row.values || row.raw || {}
     }))).filter(item => Object.values(item.raw || {}).some(value => normalize(value)) || item.productName || item.productId || item.quantity || item.unitAmount);
   }
 
