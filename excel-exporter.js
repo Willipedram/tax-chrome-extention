@@ -99,9 +99,13 @@
   function cleanSellerName(value) {
     return normalize(value)
       .split(/(?:شناسه|کد اقتصادی|شماره اقتصادی|کد پستی|نشانی|آدرس|ملی|مالیاتی)[:：]?/)[0]
-      .replace(/^(?:نام\s*)?(?:فروشنده|حق\s*العمل\s*کار)[:：-]?/u, '')
+      .replace(/^(?:نام\s*)?(?:فروشنده|حق\s*العمل\s*کار|شرکت)[:：-]?/u, '')
       .replace(/[،,;؛]+$/g, '')
       .trim();
+  }
+
+  function cleanAmount(value) {
+    return normalize(value).replace(/\s*(?:ریال|تومان)\s*$/u, '').trim();
   }
 
   function uniqueJoin(values) {
@@ -113,14 +117,14 @@
   function invoiceSummaryRow(data) {
     const sellerName = cleanSellerName(fieldValue(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت', 'نام']));
     const taxInvoiceNumber = fieldValue(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی', 'tax id', 'tax number']);
-    const unitAmounts = tableValues(data, ['مبلغ واحد', 'فی', 'بهای واحد', 'unit price', 'unit amount']);
-    const vat = fieldValue(data, 'payment', ['مالیات بر ارزش افزوده', 'مالیات ارزش افزوده', 'مالیات', 'vat']) || firstMoneyLike(tableValues(data, ['مالیات بر ارزش افزوده', 'مالیات', 'vat'], 'payment'));
-    const goodsTotal = fieldValue(data, 'payment', ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع بهای کالا', 'جمع بهای کالا', 'total before tax']) || firstMoneyLike(tableValues(data, ['مجموع بهای کالا', 'جمع بهای کالا', 'بدون مالیات', 'total before tax']));
+    const unitAmounts = tableValues(data, ['مبلغ واحد', 'فی', 'بهای واحد', 'unit price', 'unit amount']).map(cleanAmount);
+    const vat = cleanAmount(fieldValue(data, 'payment', ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده', 'مالیات', 'vat']) || firstMoneyLike(tableValues(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات', 'vat'], 'payment')));
+    const goodsTotal = cleanAmount(fieldValue(data, 'payment', ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا', 'total before tax']) || firstMoneyLike(tableValues(data, ['مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا', 'بدون مالیات', 'total before tax'])));
     const invoiceTotalCandidates = [
       ...tableValues(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'قابل پرداخت', 'جمع کل', 'total'], 'payment'),
       ...tableValues(data, moneyWords, 'payment')
     ];
-    const invoiceTotal = fieldValue(data, 'payment', ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل', 'total amount', 'final amount']) || firstMoneyLike(invoiceTotalCandidates);
+    const invoiceTotal = cleanAmount(fieldValue(data, 'payment', ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل', 'total amount', 'final amount']) || firstMoneyLike(invoiceTotalCandidates));
 
     return {
       id: taxInvoiceNumber || `${data.url || ''}:${data.extractedAt || ''}`,

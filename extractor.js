@@ -65,6 +65,21 @@
     });
   }
 
+
+  function scanStructuredPairs(root, map) {
+    root.querySelectorAll('.MuiGrid-container, .MuiListItem-root, [class*="MuiGrid-container"], [class*="MuiListItem-root"]').forEach(container => {
+      if (!visible(container)) return;
+      const children = [...container.children].filter(visible);
+      for (let i = 0; i < children.length - 1; i++) {
+        const label = text(children[i]);
+        const value = text(children[i + 1]);
+        if (!label || !value || label === value || label.length > 120 || value.length > 180) continue;
+        const looksLikeLabel = /[:：]$/.test(label) || ['شماره مالیاتی', 'نام فروشنده', 'مبلغ واحد', 'مجموع صورتحساب', 'مالیات بر ارزش افزوده', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف'].some(token => label.includes(token));
+        if (looksLikeLabel) addField(map, categoryFor(label, nearestHeading(container)), label, value, 'mui-grid');
+      }
+    });
+  }
+
   function scanTables(root) {
     const tables = [];
     root.querySelectorAll('table').forEach((table, tableIndex) => {
@@ -96,6 +111,7 @@
   function extract(root = document) {
     const map = new Map();
     scanKeyValues(root, map);
+    scanStructuredPairs(root, map);
     const tables = scanTables(root);
     const fields = [...map.values()].sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
     const data = { url: location.href, title: document.title, extractedAt: new Date().toISOString(), categories: CATEGORY_TITLES, fields, tables };
