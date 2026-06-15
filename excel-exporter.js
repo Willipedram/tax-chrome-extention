@@ -108,6 +108,55 @@
     return normalize(value).replace(/\s*(?:ریال|تومان)\s*$/u, '').trim();
   }
 
+
+  function allFieldTexts(data) {
+    return (data.fields || []).flatMap(field => [field.label, field.value]).map(normalize).filter(Boolean);
+  }
+
+  function extractCompanyName(data, sectionWord) {
+    const pattern = new RegExp(`(?:مشخصات\\s*)?${sectionWord}\\s*نام[:：]\\s*([^:：]+?)(?:\\s+نوع\\s*شخص|\\s+شناسه|\\s+کد|\\s+شماره|\\s+بیشتر|$)`, 'u');
+    for (const value of allFieldTexts(data)) {
+      const match = value.match(pattern);
+      if (match?.[1]) return cleanSellerName(match[1]);
+    }
+    return '';
+  }
+
+  function findLongTaxNumber(data) {
+    for (const value of allFieldTexts(data)) {
+      const match = value.match(/\b[A-Z0-9]{16,}\b/i);
+      if (match) return match[0];
+    }
+    return '';
+  }
+
+  function fieldValueStrict(data, category, labels, validator = value => !!value) {
+    const wanted = labels.map(keyify);
+    const matches = (data.fields || []).filter(field => !category || field.category === category);
+    for (const field of matches) {
+      const label = keyify(field.label);
+      const isMatch = wanted.some(want => label === want || label.includes(want));
+      if (isMatch && validator(normalize(field.value))) return field.value;
+    }
+    return '';
+  }
+
+  function exactTableColumnValues(data, headerLabel) {
+    const wanted = keyify(headerLabel);
+    const values = [];
+    for (const table of data.tables || []) {
+      if (/جمع\s*کل|خلاصه|summary|total/i.test(`${table.title || ''} ${(table.headers || []).join(' ')}`)) continue;
+      const headers = (table.headers || []).filter(header => keyify(header) === wanted || (keyify(header).includes(wanted) && !keyify(header).includes('مجموع')));
+      for (const row of table.rows || []) {
+        for (const header of headers) {
+          const value = cleanAmount(row.values?.[header]);
+          if (value) values.push(value);
+        }
+      }
+    }
+    return values;
+  }
+
   function uniqueJoin(values) {
     const seen = [];
     for (const value of values.map(normalize).filter(Boolean)) if (!seen.includes(value)) seen.push(value);
@@ -115,16 +164,17 @@
   }
 
   function invoiceSummaryRow(data) {
-    const sellerName = cleanSellerName(fieldValue(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت', 'نام']));
-    const taxInvoiceNumber = fieldValue(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی', 'tax id', 'tax number']);
-    const unitAmounts = tableValues(data, ['مبلغ واحد', 'فی', 'بهای واحد', 'unit price', 'unit amount']).map(cleanAmount);
-    const vat = cleanAmount(fieldValue(data, 'payment', ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده', 'مالیات', 'vat']) || firstMoneyLike(tableValues(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات', 'vat'], 'payment')));
-    const goodsTotal = cleanAmount(fieldValue(data, 'payment', ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا', 'total before tax']) || firstMoneyLike(tableValues(data, ['مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا', 'بدون مالیات', 'total before tax'])));
+    const sellerName = extractCompanyName(data, 'فروشنده') || cleanSellerName(fieldValueStrict(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت'], value => !/خریدار/.test(value)));
+    const taxInvoiceNumber = findLongTaxNumber(data) || fieldValueStrict(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی'], value => /^[A-Z0-9\-]+$/i.test(value));
+    const vat = cleanAmount(fieldValueStrict(data, 'payment', ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده'], value => /[0-9۰-۹٠-٩]/.test(value)) || firstMoneyLike(tableValues(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات', 'vat'], 'payment')));
+    const goodsTotal = cleanAmount(fieldValueStrict(data, 'payment', ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], value => /[0-9۰-۹٠-٩]/.test(value)) || firstMoneyLike(tableValues(data, ['مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا', 'بدون مالیات', 'total before tax'])));
     const invoiceTotalCandidates = [
       ...tableValues(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'قابل پرداخت', 'جمع کل', 'total'], 'payment'),
       ...tableValues(data, moneyWords, 'payment')
     ];
-    const invoiceTotal = cleanAmount(fieldValue(data, 'payment', ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل', 'total amount', 'final amount']) || firstMoneyLike(invoiceTotalCandidates));
+    const invoiceTotal = cleanAmount(fieldValueStrict(data, 'payment', ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل'], value => /[0-9۰-۹٠-٩]/.test(value)) || firstMoneyLike(invoiceTotalCandidates));
+    const blockedAmounts = new Set([vat, goodsTotal, invoiceTotal].filter(Boolean));
+    const unitAmounts = exactTableColumnValues(data, 'مبلغ واحد').filter(value => !blockedAmounts.has(value));
 
     return {
       id: taxInvoiceNumber || `${data.url || ''}:${data.extractedAt || ''}`,
