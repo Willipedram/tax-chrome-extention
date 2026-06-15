@@ -1,1 +1,43 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تنظیمات Pedram Tax Exporter</title><link rel="stylesheet" href="styles.css"></head><body><main class="app"><section class="hero"><h2>تنظیمات و مدیریت فیلدها</h2><p>ستون‌های خروجی را فعال/غیرفعال و مرتب کنید.</p></section><section class="card grid"><label>نوع خروجی Excel<select id="mode"><option value="single">یک شیت</option><option value="multi">چند شیت</option></select></label><input id="search" type="search" placeholder="جستجوی فیلد..."><div class="row"><button id="scan" class="btn">دریافت فیلدهای صفحه فعلی</button><button id="save" class="btn primary">ذخیره تنظیمات</button></div></section><section class="card"><h3>فیلدها</h3><div id="fields" class="grid muted">برای شروع صفحه فاکتور را باز و اسکن کنید.</div></section><footer class="footer">Copyright © Pedram Nakhostin<br>© پدرام نخستین</footer></main><script src="settings.js"></script></body></html>
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>تنظیمات Tax Invoice Exporter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app settings-shell">
+    <section class="hero glass">
+      <div class="brand">
+        <div class="logo">⚙️</div>
+        <div>
+          <p class="eyebrow">تنظیم اولیه فقط یک بار</p>
+          <h1>تنظیمات خروجی</h1>
+          <p class="hero-copy">بعد از ذخیره تنظیمات، دفعات بعد با کلیک روی آیکن Chrome خروجی آماده می‌شود.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card grid">
+      <label class="control">نوع خروجی Excel
+        <select id="mode"><option value="single">یک شیت خلاصه</option><option value="multi">خلاصه + شیت‌های جزئیات</option></select>
+      </label>
+      <label class="toggle"><input id="quick" type="checkbox"> <span>اجرای خودکار بعد از کلیک روی آیکن افزونه</span></label>
+      <input id="search" type="search" placeholder="جستجوی فیلد...">
+      <div class="row action-row">
+        <button id="scan" class="btn ghost">دریافت فیلدهای صفحه فعلی</button>
+        <button id="save" class="btn primary">ذخیره تنظیمات</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row"><h2>فیلدهای کشف‌شده</h2><span class="pill">قابل مرتب‌سازی</span></div>
+      <div id="fields" class="grid muted">برای شروع صفحه فاکتور را باز و اسکن کنید.</div>
+    </section>
+
+    <footer class="footer">Copyright © Pedram Nakhostin<br>© پدرام نخستین</footer>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>

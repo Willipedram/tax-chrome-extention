@@ -1,8 +1,69 @@
-const $=s=>document.querySelector(s); let fields=[]; let saved={fields:[],exportMode:'single'};
-async function activeTab(){const [tab]=await chrome.tabs.query({active:true,currentWindow:true});return tab;}
-async function init(){saved=await chrome.storage.sync.get({fields:[],exportMode:'single'}); $('#mode').value=saved.exportMode; fields=saved.fields; render();}
-function merge(discovered){const byId=new Map(saved.fields.map(f=>[f.id,f])); fields=discovered.map((f,i)=>({id:f.id,label:f.label,category:f.category,sectionTitle:f.sectionTitle,enabled:byId.get(f.id)?.enabled??true,order:byId.get(f.id)?.order??i})).sort((a,b)=>a.order-b.order);}
-function render(){const q=$('#search').value?.trim()||''; const list=fields.filter(f=>!q||`${f.label} ${f.sectionTitle}`.includes(q)); $('#fields').innerHTML=list.length?list.map((f,i)=>`<div class="field" data-id="${f.id}"><input type="checkbox" ${f.enabled?'checked':''}><div><strong>${f.label}</strong><div class="muted">${f.sectionTitle}</div></div><div><button class="btn up">↑</button><button class="btn down">↓</button></div></div>`).join(''):'فیلدی ثبت نشده است.'; document.querySelectorAll('.field').forEach(el=>{const id=el.dataset.id; el.querySelector('input').onchange=e=>fields.find(f=>f.id===id).enabled=e.target.checked; el.querySelector('.up').onclick=()=>move(id,-1); el.querySelector('.down').onclick=()=>move(id,1);});}
-function move(id,delta){const i=fields.findIndex(f=>f.id===id), j=i+delta; if(j<0||j>=fields.length)return; [fields[i],fields[j]]=[fields[j],fields[i]]; fields.forEach((f,k)=>f.order=k); render();}
-$('#search').oninput=render; $('#scan').onclick=async()=>{const tab=await activeTab(); const data=await chrome.tabs.sendMessage(tab.id,{type:'PEDRAM_GET_DATA'}); merge(data.fields||[]); render();};
-$('#save').onclick=async()=>{fields.forEach((f,i)=>f.order=i); await chrome.storage.sync.set({fields,exportMode:$('#mode').value}); $('#save').textContent='ذخیره شد ✓'; setTimeout(()=>$('#save').textContent='ذخیره تنظیمات',1200);}; init();
+const $ = selector => document.querySelector(selector);
+let fields = [];
+let saved = { fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false };
+
+async function activeTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+async function init() {
+  saved = await chrome.storage.sync.get({ fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false });
+  $('#mode').value = saved.exportMode;
+  $('#quick').checked = saved.quickExportEnabled;
+  fields = saved.fields;
+  render();
+}
+
+function merge(discovered) {
+  const byId = new Map(saved.fields.map(field => [field.id, field]));
+  fields = discovered
+    .map((field, index) => ({
+      id: field.id,
+      label: field.label,
+      category: field.category,
+      sectionTitle: field.sectionTitle,
+      enabled: byId.get(field.id)?.enabled ?? true,
+      order: byId.get(field.id)?.order ?? index
+    }))
+    .sort((a, b) => a.order - b.order);
+}
+
+function render() {
+  const query = $('#search').value?.trim() || '';
+  const list = fields.filter(field => !query || `${field.label} ${field.sectionTitle}`.includes(query));
+  $('#fields').innerHTML = list.length
+    ? list.map(field => `<div class="field" data-id="${field.id}"><input type="checkbox" ${field.enabled ? 'checked' : ''}><div><strong>${field.label}</strong><div class="muted">${field.sectionTitle}</div></div><div><button class="btn ghost up">↑</button><button class="btn ghost down">↓</button></div></div>`).join('')
+    : 'فیلدی ثبت نشده است.';
+  document.querySelectorAll('.field').forEach(element => {
+    const id = element.dataset.id;
+    element.querySelector('input').onchange = event => { fields.find(field => field.id === id).enabled = event.target.checked; };
+    element.querySelector('.up').onclick = () => move(id, -1);
+    element.querySelector('.down').onclick = () => move(id, 1);
+  });
+}
+
+function move(id, delta) {
+  const index = fields.findIndex(field => field.id === id);
+  const next = index + delta;
+  if (next < 0 || next >= fields.length) return;
+  [fields[index], fields[next]] = [fields[next], fields[index]];
+  fields.forEach((field, order) => { field.order = order; });
+  render();
+}
+
+$('#search').oninput = render;
+$('#scan').onclick = async () => {
+  const tab = await activeTab();
+  const data = await chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+  merge(data.fields || []);
+  render();
+};
+$('#save').onclick = async () => {
+  fields.forEach((field, order) => { field.order = order; });
+  await chrome.storage.sync.set({ fields, exportMode: $('#mode').value, quickExportEnabled: $('#quick').checked, setupComplete: true });
+  $('#save').textContent = 'ذخیره شد ✓';
+  setTimeout(() => { $('#save').textContent = 'ذخیره تنظیمات'; }, 1200);
+};
+
+init();

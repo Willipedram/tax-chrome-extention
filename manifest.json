@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Pedram Tax Exporter",
+  "name": "Tax Invoice Exporter",
   "description": "استخراج هوشمند اطلاعات صورتحساب‌های کارپوشه مؤدیان و خروجی Excel راست‌به‌چپ.",
   "version": "1.0.0",
   "default_locale": "fa",
@@ -21,7 +21,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Pedram Tax Exporter",
+    "default_title": "Tax Invoice Exporter",
     "default_popup": "popup.html"
   },
   "content_scripts": [
@@ -39,5 +39,8 @@
       "all_frames": false
     }
   ],
-  "options_page": "settings.html"
+  "options_page": "settings.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+  }
 }

@@ -1,7 +1,8 @@
 const $ = selector => document.querySelector(selector);
 const HISTORY_KEY = 'pedramExportHistory';
 let current = null;
-let config = { fields: [], exportMode: 'single' };
+let config = { fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false };
+let autoExportAttempted = false;
 
 const fa = number => Number(number || 0).toLocaleString('fa-IR');
 
@@ -11,7 +12,7 @@ async function activeTab() {
 }
 
 async function loadConfig() {
-  config = await chrome.storage.sync.get({ fields: [], exportMode: 'single' });
+  config = await chrome.storage.sync.get({ fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false });
 }
 
 async function loadHistory() {
@@ -31,6 +32,31 @@ function mergeHistory(history, row) {
   return history;
 }
 
+function csvEscape(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function makeSheetsCsv(history) {
+  const rows = [PedramExcelExporter.DEFAULT_HEADERS, ...history.map(item => PedramExcelExporter.DEFAULT_HEADERS.map((_, index) => item.values?.[index] || ''))];
+  return `\uFEFF${rows.map(row => row.map(csvEscape).join(',')).join('\n')}`;
+}
+
+async function currentHistoryWithRow() {
+  const row = PedramExcelExporter.invoiceSummaryRow(current);
+  const history = mergeHistory(await loadHistory(), row);
+  await saveHistory(history);
+  return history;
+}
+
 async function scan() {
   const tab = await activeTab();
   try {
@@ -39,13 +65,18 @@ async function scan() {
     current = null;
   }
   render();
+  maybeAutoExport();
 }
 
-function render() {
+async function render() {
+  const history = await loadHistory();
   const ok = current?.isSupported;
   $('#status').textContent = ok ? 'صفحه قابل استخراج شناسایی شد' : 'صفحه پشتیبانی‌شده نیست';
-  $('#counts').textContent = `${fa(current?.fields?.length)} فیلد، ${fa(current?.tables?.length)} جدول`;
+  $('#fieldCount').textContent = fa(current?.fields?.length);
+  $('#tableCount').textContent = fa(current?.tables?.length);
+  $('#historyCount').textContent = fa(history.length);
   $('#export').disabled = !ok;
+  $('#sheets').disabled = !ok;
   $('#warning').textContent = validate().join('، ');
   renderPreview();
 }
@@ -75,21 +106,29 @@ function validate() {
   return warnings;
 }
 
+async function exportExcel() {
+  await loadConfig();
+  const history = await currentHistoryWithRow();
+  const blob = PedramExcelExporter.makeWorkbook(current, config, history);
+  downloadBlob(blob, `tax-invoice-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+async function exportSheetsCsv() {
+  const history = await currentHistoryWithRow();
+  const blob = new Blob([makeSheetsCsv(history)], { type: 'text/csv;charset=utf-8' });
+  downloadBlob(blob, `tax-invoice-google-sheets-${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
+async function maybeAutoExport() {
+  if (autoExportAttempted || !current?.isSupported || !config.quickExportEnabled || !config.setupComplete) return;
+  autoExportAttempted = true;
+  await exportExcel();
+}
+
 $('#refresh').onclick = scan;
 $('#settings').onclick = () => chrome.runtime.openOptionsPage();
 $('#fields').onclick = () => chrome.runtime.openOptionsPage();
-$('#export').onclick = async () => {
-  await loadConfig();
-  const row = PedramExcelExporter.invoiceSummaryRow(current);
-  const history = mergeHistory(await loadHistory(), row);
-  await saveHistory(history);
-  const blob = PedramExcelExporter.makeWorkbook(current, config, history);
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `pedram-tax-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
+$('#export').onclick = exportExcel;
+$('#sheets').onclick = exportSheetsCsv;
 
 loadConfig().then(scan);
