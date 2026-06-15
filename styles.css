@@ -147,3 +147,13 @@ select, input[type=search] {
   .stat, .field, select, input[type=search] { background: rgba(30, 41, 59, .72); }
   .btn.ghost { color: #99f6e4; }
 }
+.value-sample {
+  margin-top: 6px;
+  padding: 7px 9px;
+  border-radius: 12px;
+  background: rgba(15, 118, 110, .08);
+  color: var(--text);
+  font-size: 12px;
+  direction: rtl;
+  word-break: break-word;
+}

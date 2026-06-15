@@ -17,7 +17,7 @@
   const keyify = (value = '') => normalize(value).toLowerCase();
   const visible = el => !!(el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden');
   const text = el => normalize(el?.innerText || el?.textContent || '');
-  const uniqueId = (category, label, index = 0) => `${category}:${keyify(label).replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 80)}:${index}`;
+  const uniqueId = (category, label) => `${category}:${keyify(label).replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 100)}`;
 
   function categoryFor(label, context = '') {
     const haystack = keyify(`${context} ${label}`);
@@ -41,30 +41,55 @@
 
   function addField(map, category, label, value, source = 'label') {
     label = normalize(label).replace(/[:：]+$/, ''); value = normalize(value);
-    if (!label || !value || label === value || label.length > 140) return;
-    const id = uniqueId(category, label, map.size);
-    if (![...map.values()].some(f => f.category === category && f.label === label && f.value === value)) {
+    if (!label || !value || label === value || label.length > 140 || value.length > 260) return;
+    const id = uniqueId(category, label);
+    const existing = map.get(id);
+    if (!existing || existing.value.length > value.length) {
       map.set(id, { id, category, sectionTitle: CATEGORY_TITLES[category], label, value, source });
     }
   }
 
-  function scanKeyValues(root, map) {
-    root.querySelectorAll('label,dt,th,strong,b,span,div,p').forEach(el => {
-      if (!visible(el)) return;
-      const label = text(el);
-      if (!label || label.length > 90) return;
-      let value = '';
-      const aria = el.getAttribute('for') && root.getElementById?.(el.getAttribute('for'));
-      if (aria) value = aria.value || text(aria);
-      if (!value && el.nextElementSibling) value = text(el.nextElementSibling);
-      if (!value && el.parentElement) {
-        const parts = [...el.parentElement.children].filter(visible).map(text).filter(Boolean);
-        if (parts.length === 2 && parts[0] === label) value = parts[1];
-      }
-      if (value) addField(map, categoryFor(label, nearestHeading(el)), label, value, 'semantic');
-    });
+  function isLeafish(el) {
+    if (!el) return false;
+    const visibleChildren = [...el.children].filter(visible);
+    return visibleChildren.length <= 1 || text(el).length < 140;
   }
 
+  function looksLikeLabel(label) {
+    const value = normalize(label);
+    if (!value || value.length > 100) return false;
+    if (/[:：]$/.test(value)) return true;
+    return Object.values(DICTIONARY).flat().some(word => keyify(value).includes(keyify(word))) ||
+      ['شماره مالیاتی', 'نام فروشنده', 'نام خریدار', 'مبلغ واحد', 'مجموع صورتحساب', 'مجموع مالیات بر ارزش افزوده', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف'].some(token => value.includes(token));
+  }
+
+  function findNearbyValue(labelEl, root) {
+    const forTarget = labelEl.getAttribute?.('for') && root.getElementById?.(labelEl.getAttribute('for'));
+    if (forTarget) return forTarget.value || text(forTarget);
+    const directSibling = labelEl.nextElementSibling;
+    if (directSibling && visible(directSibling) && isLeafish(directSibling)) return text(directSibling);
+    const parent = labelEl.parentElement;
+    if (!parent) return '';
+    const siblings = [...parent.children].filter(visible);
+    const index = siblings.indexOf(labelEl);
+    if (index >= 0 && siblings[index + 1] && isLeafish(siblings[index + 1])) return text(siblings[index + 1]);
+    if (siblings.length === 2 && isLeafish(siblings[1])) return text(siblings[1]);
+    const gridParent = labelEl.closest?.('.MuiGrid-container, [class*="MuiGrid-container"], li, .MuiListItem-root, [class*="MuiListItem-root"]');
+    const gridChildren = gridParent ? [...gridParent.children].filter(visible) : [];
+    const gridIndex = gridChildren.indexOf(labelEl);
+    if (gridIndex >= 0 && gridChildren[gridIndex + 1]) return text(gridChildren[gridIndex + 1]);
+    return '';
+  }
+
+  function scanKeyValues(root, map) {
+    root.querySelectorAll('label,dt,th,strong,b,[aria-label],.MuiGrid-item,[class*="MuiGrid-item"],li').forEach(el => {
+      if (!visible(el) || !isLeafish(el)) return;
+      const label = text(el);
+      if (!looksLikeLabel(label)) return;
+      const value = findNearbyValue(el, root);
+      if (value) addField(map, categoryFor(label, nearestHeading(el)), label, value, 'semantic-pair');
+    });
+  }
 
   function scanStructuredPairs(root, map) {
     root.querySelectorAll('.MuiGrid-container, .MuiListItem-root, [class*="MuiGrid-container"], [class*="MuiListItem-root"]').forEach(container => {
@@ -73,9 +98,8 @@
       for (let i = 0; i < children.length - 1; i++) {
         const label = text(children[i]);
         const value = text(children[i + 1]);
-        if (!label || !value || label === value || label.length > 120 || value.length > 180) continue;
-        const looksLikeLabel = /[:：]$/.test(label) || ['شماره مالیاتی', 'نام فروشنده', 'مبلغ واحد', 'مجموع صورتحساب', 'مالیات بر ارزش افزوده', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف'].some(token => label.includes(token));
-        if (looksLikeLabel) addField(map, categoryFor(label, nearestHeading(container)), label, value, 'mui-grid');
+        if (!looksLikeLabel(label) || !value || label === value || value.length > 220) continue;
+        addField(map, categoryFor(label, nearestHeading(container)), label, value, 'mui-grid');
       }
     });
   }

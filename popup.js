@@ -46,12 +46,13 @@ function downloadBlob(blob, filename) {
 }
 
 function makeSheetsCsv(history) {
-  const rows = [PedramExcelExporter.DEFAULT_HEADERS, ...history.map(item => PedramExcelExporter.DEFAULT_HEADERS.map((_, index) => item.values?.[index] || ''))];
+  const headers = PedramExcelExporter.outputHeaders(config, history);
+  const rows = [headers, ...history.map(item => headers.map((_, index) => item.values?.[index] || ''))];
   return `\uFEFF${rows.map(row => row.map(csvEscape).join(',')).join('\n')}`;
 }
 
 async function currentHistoryWithRow() {
-  const row = PedramExcelExporter.invoiceSummaryRow(current);
+  const row = PedramExcelExporter.configuredRow(current, config);
   const history = mergeHistory(await loadHistory(), row);
   await saveHistory(history);
   return history;
@@ -86,14 +87,15 @@ function renderPreview() {
     $('#preview').textContent = 'داده‌ای یافت نشد.';
     return;
   }
-  const summary = PedramExcelExporter.invoiceSummaryRow(current);
-  $('#preview').innerHTML = `<table><thead><tr>${PedramExcelExporter.DEFAULT_HEADERS.map(header => `<th>${header}</th>`).join('')}</tr></thead><tbody><tr>${summary.values.map(value => `<td>${value || '-'}</td>`).join('')}</tr></tbody></table>`;
+  const summary = PedramExcelExporter.configuredRow(current, config);
+  const headers = PedramExcelExporter.outputHeaders(config, [summary]);
+  $('#preview').innerHTML = `<table><thead><tr>${headers.map(header => `<th>${header}</th>`).join('')}</tr></thead><tbody><tr>${summary.values.map(value => `<td>${value || '-'}</td>`).join('')}</tr></tbody></table>`;
 }
 
 function validate() {
   if (!current) return ['ابتدا صفحه را اسکن کنید'];
   const warnings = [];
-  const summary = window.PedramExcelExporter?.invoiceSummaryRow(current);
+  const summary = window.PedramExcelExporter?.configuredRow(current, config);
   if (summary && summary.values.some(value => !value)) warnings.push('چند ستون خروجی خالی است');
   if ((current.fields || []).some(field => !field.value)) warnings.push('چند مقدار خام خالی است');
   const seen = new Set();
@@ -114,6 +116,7 @@ async function exportExcel() {
 }
 
 async function exportSheetsCsv() {
+  await loadConfig();
   const history = await currentHistoryWithRow();
   const blob = new Blob([makeSheetsCsv(history)], { type: 'text/csv;charset=utf-8' });
   downloadBlob(blob, `tax-invoice-google-sheets-${new Date().toISOString().slice(0, 10)}.csv`);

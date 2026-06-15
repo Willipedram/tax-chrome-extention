@@ -134,8 +134,9 @@
     };
   }
 
-  function summaryRows(history) {
-    return [DEFAULT_HEADERS, ...history.map(item => DEFAULT_HEADERS.map((_, index) => item.values?.[index] || ''))];
+  function summaryRows(history, config) {
+    const headers = outputHeaders(config, history);
+    return [headers, ...history.map(item => headers.map((_, index) => item.values?.[index] || ''))];
   }
 
   function detailRows(data, config) {
@@ -163,8 +164,43 @@
     ];
   }
 
+  function configuredHeaders(config) {
+    return (config?.fields || [])
+      .filter(field => field.enabled !== false)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map(field => field.label);
+  }
+
+  function configuredRow(data, config) {
+    const enabled = (config?.fields || [])
+      .filter(field => field.enabled !== false)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (!enabled.length) return invoiceSummaryRow(data);
+    const values = enabled.map(savedField => {
+      const match = (data.fields || []).find(field => field.id === savedField.id) ||
+        (data.fields || []).find(field => field.category === savedField.category && field.label === savedField.label) ||
+        (data.fields || []).find(field => field.label === savedField.label);
+      return normalize(match?.value || '');
+    });
+    const taxInvoiceNumber = fieldValue(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی', 'tax id', 'tax number']);
+    return {
+      id: taxInvoiceNumber || `${data.url || ''}:${data.extractedAt || ''}`,
+      extractedAt: data.extractedAt,
+      url: data.url,
+      headers: enabled.map(field => field.label),
+      values
+    };
+  }
+
+  function outputHeaders(config, history = []) {
+    const historyHeaders = history.find(item => item.headers?.length)?.headers;
+    const selectedHeaders = configuredHeaders(config);
+    return historyHeaders || (selectedHeaders.length ? selectedHeaders : DEFAULT_HEADERS);
+  }
+
   function makeWorkbook(data, config = {}, history = []) {
-    const sheets = [{ name: 'خروجی صورتحساب‌ها', rows: summaryRows(history.length ? history : [invoiceSummaryRow(data)]) }];
+    const currentRow = configuredRow(data, config);
+    const sheets = [{ name: 'خروجی صورتحساب‌ها', rows: summaryRows(history.length ? history : [currentRow], config) }];
     if (config.exportMode === 'multi') {
       const categories = window.PedramTaxExtractor?.CATEGORY_ORDER || CATEGORY_ORDER;
       categories.forEach(category => {
@@ -175,5 +211,5 @@
     return zip(workbookFiles(sheets));
   }
 
-  window.PedramExcelExporter = { makeWorkbook, invoiceSummaryRow, DEFAULT_HEADERS };
+  window.PedramExcelExporter = { makeWorkbook, invoiceSummaryRow, configuredRow, outputHeaders, DEFAULT_HEADERS };
 })();

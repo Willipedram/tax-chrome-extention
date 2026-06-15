@@ -23,6 +23,7 @@ function merge(discovered) {
       label: field.label,
       category: field.category,
       sectionTitle: field.sectionTitle,
+      sampleValue: field.value || byId.get(field.id)?.sampleValue || '',
       enabled: byId.get(field.id)?.enabled ?? true,
       order: byId.get(field.id)?.order ?? index
     }))
@@ -33,7 +34,7 @@ function render() {
   const query = $('#search').value?.trim() || '';
   const list = fields.filter(field => !query || `${field.label} ${field.sectionTitle}`.includes(query));
   $('#fields').innerHTML = list.length
-    ? list.map(field => `<div class="field" data-id="${field.id}"><input type="checkbox" ${field.enabled ? 'checked' : ''}><div><strong>${field.label}</strong><div class="muted">${field.sectionTitle}</div></div><div><button class="btn ghost up">↑</button><button class="btn ghost down">↓</button></div></div>`).join('')
+    ? list.map(field => `<div class="field" data-id="${field.id}"><input type="checkbox" ${field.enabled ? 'checked' : ''}><div><strong>${field.label}</strong><div class="muted">${field.sectionTitle}</div><div class="value-sample">${field.sampleValue || 'بدون مقدار نمونه'}</div></div><div><button class="btn ghost up">↑</button><button class="btn ghost down">↓</button></div></div>`).join('')
     : 'فیلدی ثبت نشده است.';
   document.querySelectorAll('.field').forEach(element => {
     const id = element.dataset.id;
