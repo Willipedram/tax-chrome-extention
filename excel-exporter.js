@@ -105,7 +105,10 @@
   }
 
   function cleanAmount(value) {
-    return normalize(value).replace(/\s*(?:ریال|تومان)\s*$/u, '').trim();
+    return normalize(value)
+      .replace(/^.*?[:：]\s*/u, '')
+      .replace(/\s*(?:ریال|تومان)\s*$/u, '')
+      .trim();
   }
 
 
@@ -126,6 +129,33 @@
     for (const value of allFieldTexts(data)) {
       const match = value.match(/\b[A-Z0-9]{16,}\b/i);
       if (match) return match[0];
+    }
+    return '';
+  }
+
+
+  function numberFromText(value) {
+    const cleaned = cleanAmount(value);
+    const matches = cleaned.match(/[0-9۰-۹٠-٩][0-9۰-۹٠-٩٬,\.\s]*/g);
+    return matches?.map(normalize).filter(Boolean).at(-1) || '';
+  }
+
+  function amountByLabels(data, labels, category) {
+    const wanted = labels.map(keyify);
+    for (const field of data.fields || []) {
+      if (category && field.category !== category) continue;
+      const label = keyify(field.label);
+      if (wanted.some(want => label === want || label.includes(want))) {
+        const amount = numberFromText(field.value);
+        if (amount) return amount;
+      }
+    }
+    for (const textValue of allFieldTexts(data)) {
+      for (const label of labels) {
+        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = textValue.match(new RegExp(`${escaped}\\s*[:：]\\s*([0-9۰-۹٠-٩][0-9۰-۹٠-٩٬,\\.\\s]*)`, 'u'));
+        if (match?.[1]) return normalize(match[1]);
+      }
     }
     return '';
   }
@@ -166,15 +196,11 @@
   function invoiceSummaryRow(data) {
     const sellerName = extractCompanyName(data, 'فروشنده') || cleanSellerName(fieldValueStrict(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت'], value => !/خریدار/.test(value)));
     const taxInvoiceNumber = findLongTaxNumber(data) || fieldValueStrict(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی'], value => /^[A-Z0-9\-]+$/i.test(value));
-    const vat = cleanAmount(fieldValueStrict(data, 'payment', ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده'], value => /[0-9۰-۹٠-٩]/.test(value)) || firstMoneyLike(tableValues(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات', 'vat'], 'payment')));
-    const goodsTotal = cleanAmount(fieldValueStrict(data, 'payment', ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], value => /[0-9۰-۹٠-٩]/.test(value)) || firstMoneyLike(tableValues(data, ['مجموع مبلغ قبل از کسر تخفیف', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا', 'بدون مالیات', 'total before tax'])));
-    const invoiceTotalCandidates = [
-      ...tableValues(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'قابل پرداخت', 'جمع کل', 'total'], 'payment'),
-      ...tableValues(data, moneyWords, 'payment')
-    ];
-    const invoiceTotal = cleanAmount(fieldValueStrict(data, 'payment', ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل'], value => /[0-9۰-۹٠-٩]/.test(value)) || firstMoneyLike(invoiceTotalCandidates));
+    const vat = amountByLabels(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده'], 'payment');
+    const goodsTotal = amountByLabels(data, ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], 'payment');
+    const invoiceTotal = amountByLabels(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل'], 'payment');
     const blockedAmounts = new Set([vat, goodsTotal, invoiceTotal].filter(Boolean));
-    const unitAmounts = exactTableColumnValues(data, 'مبلغ واحد').filter(value => !blockedAmounts.has(value));
+    const unitAmounts = (exactTableColumnValues(data, 'مبلغ واحد').length ? exactTableColumnValues(data, 'مبلغ واحد') : [amountByLabels(data, ['مبلغ واحد', 'فی', 'بهای واحد'])]).filter(value => value && !blockedAmounts.has(value));
 
     return {
       id: taxInvoiceNumber || `${data.url || ''}:${data.extractedAt || ''}`,
