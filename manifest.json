@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Pedram Tax Exporter",
+  "description": "استخراج هوشمند اطلاعات صورتحساب‌های کارپوشه مؤدیان و خروجی Excel راست‌به‌چپ.",
+  "version": "1.0.0",
+  "default_locale": "fa",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://tp.tax.gov.ir/*",
+    "https://*.tax.gov.ir/*",
+    "https://hardcore-char-endd.pagedrop.io/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Pedram Tax Exporter",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://tp.tax.gov.ir/*",
+        "https://*.tax.gov.ir/*",
+        "https://hardcore-char-endd.pagedrop.io/*"
+      ],
+      "js": [
+        "extractor.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "options_page": "settings.html"
+}
