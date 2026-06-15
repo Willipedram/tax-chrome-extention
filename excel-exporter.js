@@ -142,12 +142,15 @@
 
   function amountByLabels(data, labels, category) {
     const wanted = labels.map(keyify);
-    for (const field of data.fields || []) {
-      if (category && field.category !== category) continue;
-      const label = keyify(field.label);
-      if (wanted.some(want => label === want || label.includes(want))) {
-        const amount = numberFromText(field.value);
-        if (amount) return amount;
+    const fields = data.fields || [];
+    const passes = category ? [fields.filter(field => field.category === category), fields] : [fields];
+    for (const passFields of passes) {
+      for (const field of passFields) {
+        const label = keyify(field.label);
+        if (wanted.some(want => label === want || label.includes(want))) {
+          const amount = numberFromText(field.value);
+          if (amount) return amount;
+        }
       }
     }
     for (const textValue of allFieldTexts(data)) {

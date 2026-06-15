@@ -1,5 +1,6 @@
 const $ = selector => document.querySelector(selector);
 const HISTORY_KEY = 'pedramExportHistory';
+const EXPORT_SCHEMA_VERSION = 2;
 let current = null;
 let config = { fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false };
 let autoExportAttempted = false;
@@ -17,7 +18,9 @@ async function loadConfig() {
 
 async function loadHistory() {
   const result = await chrome.storage.local.get({ [HISTORY_KEY]: [] });
-  return result[HISTORY_KEY];
+  const history = result[HISTORY_KEY].filter(item => item.schemaVersion === EXPORT_SCHEMA_VERSION);
+  if (history.length !== result[HISTORY_KEY].length) await saveHistory(history);
+  return history;
 }
 
 async function saveHistory(history) {
@@ -25,6 +28,7 @@ async function saveHistory(history) {
 }
 
 function mergeHistory(history, row) {
+  row.schemaVersion = EXPORT_SCHEMA_VERSION;
   const key = row.id || row.values?.[1] || row.url;
   const existingIndex = history.findIndex(item => (item.id || item.values?.[1] || item.url) === key);
   if (existingIndex >= 0) history[existingIndex] = row;
