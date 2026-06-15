@@ -104,6 +104,29 @@
     });
   }
 
+  function scanTotalSummary(root, map) {
+    root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(heading => {
+      if (text(heading) !== 'جمع کل') return;
+      let section = heading.parentElement;
+      let summarySection = null;
+      for (let depth = 0; section && depth < 6; depth++, section = section.parentElement) {
+        const sectionText = text(section);
+        if (sectionText.includes('مجموع مالیات بر ارزش افزوده') && sectionText.includes('مجموع صورتحساب')) { summarySection = section; break; }
+      }
+      section = summarySection;
+      if (!section) return;
+      section.querySelectorAll('li, .MuiListItem-root, [class*="MuiListItem-root"], .MuiGrid-container, [class*="MuiGrid-container"]').forEach(row => {
+        const children = [...row.children].filter(visible);
+        for (let i = 0; i < children.length - 1; i++) {
+          const label = text(children[i]);
+          const value = text(children[i + 1]);
+          if (!looksLikeLabel(label) || !/[0-9۰-۹٠-٩]/.test(value)) continue;
+          addField(map, 'payment', label, value, 'total-summary');
+        }
+      });
+    });
+  }
+
   function scanTables(root) {
     const tables = [];
     root.querySelectorAll('table').forEach((table, tableIndex) => {
@@ -136,6 +159,7 @@
     const map = new Map();
     scanKeyValues(root, map);
     scanStructuredPairs(root, map);
+    scanTotalSummary(root, map);
     const tables = scanTables(root);
     const fields = [...map.values()].sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
     const data = { url: location.href, title: document.title, extractedAt: new Date().toISOString(), categories: CATEGORY_TITLES, fields, tables };

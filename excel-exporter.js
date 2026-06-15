@@ -6,8 +6,8 @@
     'نام فروشنده/حق‌العمل کار',
     'شماره مالیاتی صورتحساب',
     'مبلغ واحد',
-    'مالیات بر ارزش افزوده',
-    'مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض (ریال)',
+    'مجموع مالیات بر ارزش افزوده',
+    'مجموع مبلغ پس از کسر تخفیف',
     'مجموع صورتحساب'
   ];
   const CATEGORY_ORDER = ['invoice', 'seller', 'buyer', 'payment', 'supplementary'];
@@ -200,7 +200,7 @@
     const sellerName = extractCompanyName(data, 'فروشنده') || cleanSellerName(fieldValueStrict(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت'], value => !/خریدار/.test(value)));
     const taxInvoiceNumber = findLongTaxNumber(data) || fieldValueStrict(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی'], value => /^[A-Z0-9\-]+$/i.test(value));
     const vat = amountByLabels(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده'], 'payment');
-    const goodsTotal = amountByLabels(data, ['مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], 'payment');
+    const goodsTotal = amountByLabels(data, ['مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], 'payment');
     const invoiceTotal = amountByLabels(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل'], 'payment');
     const blockedAmounts = new Set([vat, goodsTotal, invoiceTotal].filter(Boolean));
     const unitAmounts = (exactTableColumnValues(data, 'مبلغ واحد').length ? exactTableColumnValues(data, 'مبلغ واحد') : [amountByLabels(data, ['مبلغ واحد', 'فی', 'بهای واحد'])]).filter(value => value && !blockedAmounts.has(value));
