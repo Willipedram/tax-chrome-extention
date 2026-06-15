@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tax Invoice Exporter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app shell">
+    <section class="hero glass">
+      <div class="brand">
+        <div class="logo">🧾</div>
+        <div>
+          <p class="eyebrow">خروجی هوشمند کارپوشه مؤدیان</p>
+          <h1>Tax Invoice Exporter</h1>
+          <p class="hero-copy">اسکن خودکار صفحه، پیش‌نمایش سریع، خروجی Excel و Google Sheets</p>
+        </div>
+      </div>
+      <div class="status-chip" id="status">در حال بررسی صفحه...</div>
+    </section>
+
+    <section class="card stats-card">
+      <div class="stat"><span id="fieldCount">۰</span><small>فیلد</small></div>
+      <div class="stat"><span id="tableCount">۰</span><small>جدول</small></div>
+      <div class="stat"><span id="historyCount">۰</span><small>ردیف خروجی</small></div>
+    </section>
+
+    <section class="card action-card grid">
+      <button id="export" class="btn primary" disabled>دانلود Excel</button>
+      <button id="sheets" class="btn success" disabled>خروجی Google Sheets (CSV)</button>
+      <div class="row action-row">
+        <button id="fields" class="btn ghost">مدیریت فیلدها</button>
+        <button id="settings" class="btn ghost">تنظیمات</button>
+        <button id="refresh" class="btn ghost">اسکن مجدد</button>
+      </div>
+      <p id="warning" class="notice"></p>
+    </section>
+
+    <section class="card preview-card">
+      <div class="row"><h2>پیش‌نمایش خروجی</h2><span class="pill">RTL</span></div>
+      <div id="preview" class="preview muted">داده‌ای یافت نشد.</div>
+    </section>
+
+    <footer class="footer">Copyright © Pedram Nakhostin<br>© پدرام نخستین</footer>
+  </main>
+  <script src="excel-exporter.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
