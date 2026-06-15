@@ -13,7 +13,6 @@
     'مجموع مالیات بر ارزش افزوده',
     'مجموع مبلغ پس از کسر تخفیف',
     'مجموع صورتحساب',
-    'بیشتر',
     'تاریخ درج در کارپوشه',
     'روزهای باقی مانده جهت واکنش خریدار'
   ];
@@ -200,6 +199,16 @@
     return '';
   }
 
+
+  function textByLabels(data, labels) {
+    const wanted = labels.map(keyify);
+    for (const field of data.fields || []) {
+      const label = keyify(field.label);
+      if (wanted.some(want => label === want || label.includes(want))) return normalize(field.value);
+    }
+    return '';
+  }
+
   function exactTableColumnValues(data, headerLabel) {
     const wanted = keyify(headerLabel);
     const values = [];
@@ -239,45 +248,61 @@
     return '';
   }
 
-  function invoiceItemRows(data) {
-    const itemTables = (data.tables || []).filter(table => {
+  function invoiceItemTables(data) {
+    return (data.tables || []).filter(table => {
       const context = keyify(`${table.title || ''} ${(table.headers || []).join(' ')}`);
       if (/جمع\s*کل|خلاصه|summary|total/.test(context)) return false;
       return ['کالا', 'خدمت', 'شرح', 'شناسه', 'تعداد', 'مقدار', 'مبلغ واحد'].some(token => context.includes(keyify(token)));
     });
-    return itemTables.flatMap(table => (table.rows || []).map(row => ({
+  }
+
+  function invoiceItemHeaders(data) {
+    const headers = [];
+    for (const table of invoiceItemTables(data)) {
+      for (const header of table.headers || []) {
+        const value = normalize(header);
+        if (value && !headers.includes(value)) headers.push(value);
+      }
+    }
+    return headers.length ? headers : ['نام کالا/خدمت', 'شناسه کالا/خدمت', 'تعداد/مقدار', 'مبلغ واحد'];
+  }
+
+  function invoiceItemRows(data) {
+    return invoiceItemTables(data).flatMap(table => (table.rows || []).map(row => ({
       productName: valueByHeader(row, ['نام کالا/خدمت', 'نام کالا', 'نام خدمت', 'شرح کالا', 'شرح خدمت', 'شرح', 'کالا/خدمت']),
       productId: valueByHeader(row, ['شناسه کالا/خدمت', 'شناسه کالا', 'شناسه خدمت', 'کد کالا', 'کد خدمت']),
       quantity: valueByHeader(row, ['تعداد/مقدار', 'تعداد', 'مقدار']),
       unitAmount: valueByHeader(row, ['مبلغ واحد', 'فی', 'بهای واحد']),
       raw: row.values || {}
-    }))).filter(item => item.productName || item.productId || item.quantity || item.unitAmount);
+    }))).filter(item => Object.values(item.raw || {}).some(value => normalize(value)) || item.productName || item.productId || item.quantity || item.unitAmount);
   }
 
   function invoiceLevelValues(data) {
     const sellerName = extractCompanyName(data, 'فروشنده') || cleanSellerName(fieldValueStrict(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت'], value => !/خریدار/.test(value)));
     const taxInvoiceNumber = findLongTaxNumber(data) || fieldValueStrict(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی'], value => /^[A-Z0-9\-]+$/i.test(value));
-    const settlementMethod = fieldValueStrict(data, null, ['روش تسویه', 'نحوه تسویه', 'نوع تسویه']) || amountByLabels(data, ['روش تسویه', 'نحوه تسویه', 'نوع تسویه']);
+    const settlementMethod = textByLabels(data, ['روش تسویه', 'نحوه تسویه', 'نوع تسویه']);
     const vat = amountByExactLabels(data, ['مجموع مالیات بر ارزش افزوده'], 'payment') || amountByLabels(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده'], 'payment');
-    const goodsTotal = amountByLabels(data, ['مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], 'payment');
-    const invoiceTotal = amountByLabels(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت', 'جمع کل'], 'payment');
-    const more = fieldValueStrict(data, null, ['بیشتر']);
+    const goodsTotal = amountByExactLabels(data, ['مجموع مبلغ پس از کسر تخفیف'], 'payment') || amountByLabels(data, ['مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], 'payment');
+    const invoiceTotal = amountByExactLabels(data, ['مجموع صورتحساب'], 'payment') || amountByLabels(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت'], 'payment');
     const insertedAt = fieldValueStrict(data, null, ['تاریخ درج در کارپوشه', 'تاریخ درج']);
     const remainingDays = fieldValueStrict(data, null, ['روزهای باقی مانده جهت واکنش خریدار', 'روزهای باقی مانده', 'مهلت واکنش خریدار']);
-    return { sellerName, taxInvoiceNumber, settlementMethod, vat, goodsTotal, invoiceTotal, more, insertedAt, remainingDays };
+    return { sellerName, taxInvoiceNumber, settlementMethod, vat, goodsTotal, invoiceTotal, insertedAt, remainingDays };
   }
 
   function invoiceDefaultRows(data) {
     const base = invoiceLevelValues(data);
+    const itemHeaders = invoiceItemHeaders(data);
+    const headers = ['نام فروشنده/حق‌العمل کار', 'شماره مالیاتی صورتحساب', ...itemHeaders, 'روش تسویه', 'مجموع مالیات بر ارزش افزوده', 'مجموع مبلغ پس از کسر تخفیف', 'مجموع صورتحساب', 'تاریخ درج در کارپوشه', 'روزهای باقی مانده جهت واکنش خریدار'];
     const items = invoiceItemRows(data);
     const fallbackUnitAmounts = exactTableColumnValues(data, 'مبلغ واحد');
     const fallbackQuantityValues = tableColumnValues(data, ['تعداد/مقدار', 'تعداد', 'مقدار']);
-    const rows = items.length ? items : [{ unitAmount: fallbackUnitAmounts[0] || amountByLabels(data, ['مبلغ واحد', 'فی', 'بهای واحد']), quantity: fallbackQuantityValues[0] || amountByLabels(data, ['تعداد/مقدار', 'تعداد', 'مقدار']) }];
+    const rows = items.length ? items : [{ raw: { 'مبلغ واحد': fallbackUnitAmounts[0] || amountByLabels(data, ['مبلغ واحد', 'فی', 'بهای واحد']), 'تعداد/مقدار': fallbackQuantityValues[0] || amountByLabels(data, ['تعداد/مقدار', 'تعداد', 'مقدار']) } }];
     return rows.map((item, index) => ({
       id: `${base.taxInvoiceNumber || data.url || 'invoice'}:${index + 1}:${item.productId || item.productName || ''}`,
       extractedAt: data.extractedAt,
       url: data.url,
-      values: [base.sellerName, base.taxInvoiceNumber, item.productName || '', item.productId || '', item.quantity || '', item.unitAmount || '', base.settlementMethod, base.vat, base.goodsTotal, base.invoiceTotal, base.more, base.insertedAt, base.remainingDays]
+      headers,
+      values: [base.sellerName, base.taxInvoiceNumber, ...itemHeaders.map(header => cleanAmount(item.raw?.[header] || '')), base.settlementMethod, base.vat, base.goodsTotal, base.invoiceTotal, base.insertedAt, base.remainingDays]
     }));
   }
 
