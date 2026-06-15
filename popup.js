@@ -55,6 +55,12 @@ function makeSheetsCsv(history) {
   return `\uFEFF${rows.map(row => row.map(csvEscape).join(',')).join('\n')}`;
 }
 
+function makeSheetsTsv(history) {
+  const headers = PedramExcelExporter.outputHeaders(config, history);
+  const rows = [headers, ...history.map(item => headers.map((_, index) => item.values?.[index] || ''))];
+  return rows.map(row => row.map(value => String(value ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+}
+
 async function currentHistoryWithRow() {
   const row = PedramExcelExporter.configuredRow(current, config);
   const history = mergeHistory(await loadHistory(), row);
@@ -122,8 +128,16 @@ async function exportExcel() {
 async function exportSheetsCsv() {
   await loadConfig();
   const history = await currentHistoryWithRow();
-  const blob = new Blob([makeSheetsCsv(history)], { type: 'text/csv;charset=utf-8' });
-  downloadBlob(blob, `tax-invoice-google-sheets-${new Date().toISOString().slice(0, 10)}.csv`);
+  const tsv = makeSheetsTsv(history);
+  try {
+    await navigator.clipboard.writeText(tsv);
+    $('#warning').textContent = 'داده‌ها کپی شد؛ در تب Google Sheets با Ctrl+V جای‌گذاری کنید.';
+  } catch {
+    const blob = new Blob([makeSheetsCsv(history)], { type: 'text/csv;charset=utf-8' });
+    downloadBlob(blob, `tax-invoice-google-sheets-${new Date().toISOString().slice(0, 10)}.csv`);
+    $('#warning').textContent = 'کپی خودکار ممکن نبود؛ فایل CSV دانلود شد.';
+  }
+  chrome.tabs.create({ url: 'https://docs.google.com/spreadsheets/create' });
 }
 
 async function maybeAutoExport() {

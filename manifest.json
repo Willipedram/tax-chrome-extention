@@ -9,7 +9,8 @@
     "activeTab",
     "scripting",
     "downloads",
-    "tabs"
+    "tabs",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "https://tp.tax.gov.ir/*",
