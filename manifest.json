@@ -15,7 +15,8 @@
   "host_permissions": [
     "https://tp.tax.gov.ir/*",
     "https://*.tax.gov.ir/*",
-    "https://hardcore-char-endd.pagedrop.io/*"
+    "https://hardcore-char-endd.pagedrop.io/*",
+    "https://*.pagedrop.io/*"
   ],
   "background": {
     "service_worker": "service-worker.js",
@@ -30,7 +31,8 @@
       "matches": [
         "https://tp.tax.gov.ir/*",
         "https://*.tax.gov.ir/*",
-        "https://hardcore-char-endd.pagedrop.io/*"
+        "https://hardcore-char-endd.pagedrop.io/*",
+        "https://*.pagedrop.io/*"
       ],
       "js": [
         "extractor.js",

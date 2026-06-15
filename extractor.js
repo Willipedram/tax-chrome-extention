@@ -149,7 +149,7 @@
   }
 
   function detectPage(data) {
-    const hostOk = /(^|\.)tax\.gov\.ir$/i.test(location.hostname) || location.hostname === 'hardcore-char-endd.pagedrop.io';
+    const hostOk = /(^|\.)tax\.gov\.ir$/i.test(location.hostname) || /(^|\.)pagedrop\.io$/i.test(location.hostname);
     const pageText = keyify(document.body.innerText || '');
     const score = ['صورتحساب','خریدار','فروشنده','پرداخت','مالیات','invoice','payment'].reduce((s, w) => s + (pageText.includes(keyify(w)) ? 1 : 0), 0);
     return hostOk && (score >= 2 || data.tables.length || data.fields.length >= 3);

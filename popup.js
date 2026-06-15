@@ -69,10 +69,20 @@ async function currentHistoryWithRow() {
   return history;
 }
 
+
+async function requestPageData(tab) {
+  try {
+    return await chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['extractor.js', 'content.js'] });
+    return chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+  }
+}
+
 async function scan() {
   const tab = await activeTab();
   try {
-    current = await chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+    current = await requestPageData(tab);
   } catch {
     current = null;
   }

@@ -7,6 +7,16 @@ async function activeTab() {
   return tab;
 }
 
+
+async function requestPageData(tab) {
+  try {
+    return await chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['extractor.js', 'content.js'] });
+    return chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+  }
+}
+
 async function init() {
   saved = await chrome.storage.sync.get({ fields: [], exportMode: 'single', quickExportEnabled: false, setupComplete: false });
   $('#mode').value = saved.exportMode;
@@ -56,7 +66,7 @@ function move(id, delta) {
 $('#search').oninput = render;
 $('#scan').onclick = async () => {
   const tab = await activeTab();
-  const data = await chrome.tabs.sendMessage(tab.id, { type: 'PEDRAM_GET_DATA' });
+  const data = await requestPageData(tab);
   merge(data.fields || []);
   render();
 };
