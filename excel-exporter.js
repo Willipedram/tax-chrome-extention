@@ -200,6 +200,13 @@
   }
 
 
+
+  function cleanPaymentMethod(value) {
+    const text = normalize(value).replace(/^.*?(?:روش\s*(?:پرداخت|تسویه)|نحوه\s*تسویه|نوع\s*تسویه)\s*[:：-]?\s*/u, '');
+    const match = text.match(/(?:نقدی|نقد|اقساط|اقسات|نسیه|اعتباری|تهاتر|کارت|انتقال\s*بانکی|واریز|چک|pos|cash|credit|installment)/iu);
+    return normalize(match?.[0] || text.split(/[،,;؛\n|]/u)[0]).trim();
+  }
+
   function textByLabels(data, labels) {
     const wanted = labels.map(keyify);
     for (const field of data.fields || []) {
@@ -290,7 +297,7 @@
   function invoiceLevelValues(data) {
     const sellerName = extractCompanyName(data, 'فروشنده') || cleanSellerName(fieldValueStrict(data, 'seller', ['نام فروشنده', 'فروشنده', 'نام شرکت'], value => !/خریدار/.test(value)));
     const taxInvoiceNumber = findLongTaxNumber(data) || fieldValueStrict(data, 'invoice', ['شماره مالیاتی صورتحساب', 'شماره منحصر مالیاتی', 'شماره مالیاتی'], value => /^[A-Z0-9\-]+$/i.test(value));
-    const settlementMethod = textByLabels(data, ['روش تسویه', 'نحوه تسویه', 'نوع تسویه']);
+    const settlementMethod = cleanPaymentMethod(textByLabels(data, ['روش پرداخت', 'روش تسویه', 'نحوه تسویه', 'نوع تسویه']));
     const vat = amountByExactLabels(data, ['مجموع مالیات بر ارزش افزوده'], 'payment') || amountByLabels(data, ['مجموع مالیات بر ارزش افزوده', 'مالیات بر ارزش افزوده', 'مالیات ارزش افزوده'], 'payment');
     const goodsTotal = amountByExactLabels(data, ['مجموع مبلغ پس از کسر تخفیف'], 'payment') || amountByLabels(data, ['مجموع مبلغ پس از کسر تخفیف', 'مجموع بهای کالا و خدمات صورتحساب بدون مالیات و عوارض', 'مجموع مبلغ قبل از کسر تخفیف', 'مجموع بهای کالا', 'جمع بهای کالا'], 'payment');
     const invoiceTotal = amountByExactLabels(data, ['مجموع صورتحساب'], 'payment') || amountByLabels(data, ['مجموع صورتحساب', 'مبلغ نهایی', 'مبلغ قابل پرداخت'], 'payment');
