@@ -15,6 +15,8 @@
 
   const normalize = (value = '') => String(value).replace(/[\u200c\u200f\u200e]/g, ' ').replace(/\s+/g, ' ').trim();
   const keyify = (value = '') => normalize(value).toLowerCase();
+  const PAYMENT_METHOD_PATTERN = /(?:نقدی|نقد|اقساط|اقسات|نسیه|اعتباری|تهاتر|کارت|انتقال\s*بانکی|واریز|چک|pos|cash|credit|installment)/iu;
+  const PAYMENT_METHOD_LABEL_PATTERN = /روش\s*(?:پرداخت|تسویه)|نحوه\s*تسویه|نوع\s*تسویه/iu;
   const visible = el => !!(el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden');
   const text = el => normalize(el?.innerText || el?.textContent || '');
   const uniqueId = (category, label) => `${category}:${keyify(label).replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 100)}`;
@@ -104,6 +106,35 @@
     });
   }
 
+
+  function cleanPaymentMethodValue(value) {
+    const textValue = normalize(value).replace(/^.*?(?:روش\s*(?:پرداخت|تسویه)|نحوه\s*تسویه|نوع\s*تسویه)\s*[:：-]?\s*/u, '');
+    const match = textValue.match(PAYMENT_METHOD_PATTERN);
+    if (match?.[0]) return normalize(match[0]);
+    const firstPart = normalize(textValue.split(/[،,;؛\n|]/u)[0]);
+    return firstPart.length <= 24 && !/\s{2,}|مشخصات|صورتحساب|خریدار|فروشنده|مجموع/.test(firstPart) ? firstPart : '';
+  }
+
+  function scanPaymentMethod(root, map) {
+    root.querySelectorAll('li, .MuiListItem-root, [class*="MuiListItem-root"], .MuiGrid-container, [class*="MuiGrid-container"]').forEach(container => {
+      if (!visible(container)) return;
+      const rowText = text(container);
+      if (!PAYMENT_METHOD_LABEL_PATTERN.test(rowText)) return;
+      const children = [...container.children].filter(visible);
+      for (let i = 0; i < children.length - 1; i++) {
+        const label = text(children[i]);
+        if (!PAYMENT_METHOD_LABEL_PATTERN.test(label)) continue;
+        const value = cleanPaymentMethodValue(text(children[i + 1]));
+        if (value) addField(map, 'payment', label, value, 'payment-method');
+      }
+      const inline = rowText.match(/((?:روش\s*(?:پرداخت|تسویه)|نحوه\s*تسویه|نوع\s*تسویه))\s*[:：-]?\s*([^،,;؛\n|]+)/iu);
+      if (inline?.[1] && inline?.[2]) {
+        const value = cleanPaymentMethodValue(inline[2]);
+        if (value) addField(map, 'payment', inline[1], value, 'payment-method');
+      }
+    });
+  }
+
   function scanTotalSummary(root, map) {
     root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(heading => {
       if (text(heading) !== 'جمع کل') return;
@@ -159,6 +190,7 @@
     const map = new Map();
     scanKeyValues(root, map);
     scanStructuredPairs(root, map);
+    scanPaymentMethod(root, map);
     scanTotalSummary(root, map);
     const tables = scanTables(root);
     const fields = [...map.values()].sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));

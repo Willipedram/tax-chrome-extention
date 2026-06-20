@@ -204,7 +204,9 @@
   function cleanPaymentMethod(value) {
     const text = normalize(value).replace(/^.*?(?:روش\s*(?:پرداخت|تسویه)|نحوه\s*تسویه|نوع\s*تسویه)\s*[:：-]?\s*/u, '');
     const match = text.match(/(?:نقدی|نقد|اقساط|اقسات|نسیه|اعتباری|تهاتر|کارت|انتقال\s*بانکی|واریز|چک|pos|cash|credit|installment)/iu);
-    return normalize(match?.[0] || text.split(/[،,;؛\n|]/u)[0]).trim();
+    if (match?.[0]) return normalize(match[0]);
+    const firstPart = normalize(text.split(/[،,;؛\n|]/u)[0]);
+    return firstPart.length <= 24 && !/\s{2,}|مشخصات|صورتحساب|خریدار|فروشنده|مجموع/.test(firstPart) ? firstPart : '';
   }
 
   function textByLabels(data, labels) {
