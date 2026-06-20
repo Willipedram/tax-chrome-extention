@@ -3,7 +3,6 @@
   "name": "Tax Invoice Exporter",
   "description": "استخراج هوشمند اطلاعات صورتحساب‌های کارپوشه مؤدیان و خروجی Excel راست‌به‌چپ.",
   "version": "1.0.0",
-  "default_locale": "fa",
   "permissions": [
     "storage",
     "activeTab",
